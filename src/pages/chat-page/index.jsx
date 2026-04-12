@@ -243,7 +243,7 @@ function ChatPage() {
                                     "HH:mm DD/MM/YYYY"
                                 )}
                                 sentByCurrentUser={
-                                    messages?.user?.id === localStorage.getItem("id")
+                                    String(messages?.user?.id) === localStorage.getItem("id")
                                 }
                             />
                         ))}
