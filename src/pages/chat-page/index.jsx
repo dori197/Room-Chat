@@ -69,7 +69,7 @@ function ChatPage() {
         if (!currentRoom?.id) return;
         fetchMessages();
         const channel = supabase
-            .channel(`room-${currentRoom?.id}`)
+            .channel(`room-${currentRoom.id}-${Math.random()}`)
             .on(
                 "postgres_changes",
                 {
@@ -165,16 +165,21 @@ function ChatPage() {
         try {
             if (!chatValue.trim()) return;
             const value = chatValue.trim();
-            const { data } = await supabase
+            setChatValue("");
+            const { data, error } = await supabase
                 .from("messages")
                 .insert([{
                     room_id: currentRoom.id,
                     user_id: localStorage.getItem("id"),
                     content: value,
                 }]);
-            setChatValue("");
+            if (error) {
+                toast.error("Không thể gửi tin nhắn !");
+                return;
+            }
+            fetchMessages();
         } catch (error) {
-            toast.error(error.message);
+            toast.error("Lỗi hệ thống !");
         }
     };
 
