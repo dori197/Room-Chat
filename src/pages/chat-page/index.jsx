@@ -8,8 +8,15 @@ import { MdDeleteForever } from 'react-icons/md';
 import MessageBox from '../../components/message-box';
 import dayjs from 'dayjs';
 import CreateButton from '../../components/create-button';
+import { useNavigate } from 'react-router-dom';
+import LogoutButton from '../../components/logout-button';
 
 function ChatPage() {
+    const navigate = useNavigate();
+
+    const renderAvatar = localStorage.getItem("avatar");
+    const renderName = localStorage.getItem("username") || "Ẩn danh";
+
     const [isOpen, setIsOpen] = useState(false);
     const [roomValue, setRoomValue] = useState("");
     const [room, setRoom] = useState([]);
@@ -25,18 +32,23 @@ function ChatPage() {
         endRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
+    const fetchAvatar = (renderAvatar && renderAvatar !== "null" && renderAvatar !== "undefined")
+        ? renderAvatar
+        : `https://ui-avatars.com/api/?name=${renderName}&background=random&color=fff`;
 
     const fetchRoom = async () => {
-        const { data } = await supabase.from("rooms").select("*");
+        const { data } = await supabase.from("rooms").select("*").order("created_at", { ascending: false });
         setRoom(data);
         setFilteredRooms(data);
-        setCurrentRoom(data[0]);
+        if (data && data.length > 0) {
+            setCurrentRoom(data[0]);
+        } else {
+            setCurrentRoom(null);
+        }
     };
 
     const fetchMessages = async () => {
+        setMessages([]);
         const { data } = await supabase
             .from("messages")
             .select("id, content, created_at, user:users(id, username)")
@@ -50,10 +62,14 @@ function ChatPage() {
     }, []);
 
     useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
+    useEffect(() => {
         if (!currentRoom?.id) return;
         fetchMessages();
         const channel = supabase
-            .channel("realtime-message")
+            .channel(`room-${currentRoom?.id}`)
             .on(
                 "postgres_changes",
                 {
@@ -91,6 +107,37 @@ function ChatPage() {
     useEffect(() => {
         handleSearch();
     }, [searchDebounce]);
+
+    useEffect(() => {
+        const handleAuth = (session) => {
+            const currentId = localStorage.getItem("id");
+            if (currentId !== session.user.id) {
+                toast.success("Đăng nhập thành công!");
+            }
+            localStorage.setItem("id", session.user.id);
+            localStorage.setItem("username", session.user.user_metadata.full_name);
+            localStorage.setItem("avatar", session.user.user_metadata.avatar_url);
+        };
+
+        const checkLogin = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                handleAuth(session);
+            }
+        };
+        checkLogin();
+        const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN') {
+                handleAuth(session);        
+            } else if (event === 'SIGNED_OUT') {
+                localStorage.clear();
+                navigate("/");
+            }
+        });
+        return () => {
+            authListener.subscription.unsubscribe();
+        };
+    }, []);
 
     const handleCreateRoom = async () => {
         try {
@@ -159,10 +206,38 @@ function ChatPage() {
         }
     };
 
+    const handleLogout = async () => {
+        try {
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+                toast.error("Đăng xuất không thành công !");
+                return;
+            }
+            localStorage.clear();
+            navigate("/");
+            toast.success("Đăng xuất thành công !");
+        } catch (error) {
+            toast.error("Đã xảy ra lỗi hệ thống !");
+        }
+    };
+
     return (
         <section className='w-full min-h-screen'>
             <Row className='w-full'>
-                <Col span={5} className='bg-var(--secondary-color) h-screen px-3 py-5 flex flex-col border border-gray-500'>
+                <Col span={5} className='bg-var(--secondary-color) h-screen flex flex-col border border-gray-500'>
+                    <div className='flex items-center p-2 gap-3 mb-3 border-b-2 border-gray-500'>
+                        <img
+                            src={fetchAvatar}
+                            className="w-10 h-10 rounded-full border border-gray-300 object-cover"
+                        />
+                        <p className="font-bold text-black">
+                            {renderName}
+                        </p>
+                        <LogoutButton
+                            onClick={handleLogout}
+                            className='ml-auto'>
+                        </LogoutButton>
+                    </div>
                     <div className="flex justify-center items-center gap-3 mb-10">
                         <div className="flex-1">
                             <Input
@@ -178,7 +253,7 @@ function ChatPage() {
                             onCancel={() => setIsOpen(false)}
                             footer={null}
                         >
-                            <div className='mt-6 flex items-center gap-3'>
+                            <div className='mt-6 pt-2 flex items-center gap-3'>
                                 <Input
                                     value={roomValue}
                                     onChange={(e) => setRoomValue(e.target.value)}
@@ -188,7 +263,7 @@ function ChatPage() {
                                         }
                                     }}
                                     placeholder='Nhập tên phòng...'
-                                    className="flex-1" 
+                                    className="flex-1"
                                 />
                                 <CreateButton children="Tạo" onClick={handleCreateRoom} />
                             </div>

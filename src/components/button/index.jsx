@@ -1,7 +1,7 @@
 import React from "react";
 import styled from "styled-components";
 
-const Button = ({ children, ...press }) => {
+const Button = ({ ...press }) => {
   return (
     <StyledWrapper>
       <button {...press}>
@@ -13,7 +13,6 @@ const Button = ({ children, ...press }) => {
             </svg>
           </div>
         </div>
-        <span>{children}</span>
       </button>
     </StyledWrapper>
   );
@@ -25,7 +24,6 @@ const StyledWrapper = styled.div`
     font-size: 15px;
     background: linear-gradient(to bottom, #4dc7d9 0%,#66a6ff 100%);
     color: white;
-    padding: 0.2em 0.5em;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -36,7 +34,6 @@ const StyledWrapper = styled.div`
   }
 
   button:hover {
-    transform: translateY(-3px);
     box-shadow: 0px 8px 15px rgba(0, 0, 0, 0.3);
     padding: 0em;
     background: linear-gradient(to bottom, #5bd9ec 0%,#97c3ff 100%);
