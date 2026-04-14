@@ -48,7 +48,6 @@ function ChatPage() {
     };
 
     const fetchMessages = async () => {
-        setMessages([]);
         const { data } = await supabase
             .from("messages")
             .select("id, content, created_at, user:users(id, username)")
